@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Josephus Problem</title>
+    <style>
+        :root {
+            --bg: #0f1724;
+            --panel: #0b1220;
+            --accent: #7dd3fc;
+            --muted: #94a3b8;
+            --dead: #4b5563;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        }
+
+        body {
+            background: linear-gradient(180deg, #071025 0%, #071733 60%);
+            color: #e6eef8;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 28px
+        }
+
+        .app {
+            width: 920px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.06));
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(2, 6, 23, 0.6)
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0;
+            color: var(--accent)
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center
+        }
+
+        .controls input[type=number] {
+            width: 110px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: transparent;
+            color: inherit
+        }
+
+        button {
+            padding: 9px 14px;
+            border-radius: 10px;
+            border: none;
+            background: var(--accent);
+            color: #012;
+            cursor: pointer;
+            font-weight: 600
+        }
+
+        button.secondary {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--muted)
+        }
+
+        .main {
+            display: flex;
+            gap: 18px
+        }
+
+        #arena {
+            width: 560px;
+            height: 560px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 30%, rgba(125, 211, 252, 0.04), transparent 20%), rgba(255, 255, 255, 0.02);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.03)
+        }
+
+        .sidebar {
+            flex: 1;
+            min-width: 240px
+        }
+
+        .stat {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(0, 0, 0, 0.04));
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px
+        }
+
+        /* person now uses a small SVG inside */
+        .person {
+            position: absolute;
+            width: 56px;
+            height: 72px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            background: transparent;
+            color: inherit;
+            transition: transform 500ms ease, opacity 500ms ease
+        }
+
+        .person .avatar {
+            width: 46px;
+            height: 66px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #e6f9ff, #c3f0ff);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 6px;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 20px rgba(2, 6, 23, 0.6)
+        }
+
+        .person .head {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffe6c7;
+            margin-bottom: 6px
+        }
+
+        .person .body {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #9be7ff, #5fc9f6)
+        }
+
+        .person.dead .avatar {
+            background: linear-gradient(180deg, #374151, #26303a)
+        }
+
+        .person.dead .head {
+            background: #9aa6b2
+        }
+
+        .person.dead .body {
+            background: #54606a
+        }
+
+        /* slash animation element */
+        .slash {
+            position: absolute;
+            pointer-events: none;
+            height: 8px;
+            width: 0;
+            background: linear-gradient(90deg, rgba(255, 30, 30, 0.95), rgba(255, 120, 120, 0.9));
+            filter: drop-shadow(0 6px 18px rgba(255, 60, 60, 0.14));
+            transform-origin: left center;
+            border-radius: 6px
+        }
+
+        @keyframes slashGrow {
+            0% {
+                width: 0;
+                opacity: 1
+            }
+
+            60% {
+                width: 220px;
+                opacity: 1
+            }
+
+            100% {
+                width: 260px;
+                opacity: 0
+            }
+        }
+
+        .result {
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--accent);
+            margin-top: 10px
+        }
+
+        .mutebtn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 6px 8px;
+            border-radius: 8px;
+            color: var(--muted);
+            cursor: pointer
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <div class="header">
+            <h1>Josephus Problem</h1>
+            <div class="controls">
+                <label>People: <input id="numPeople" type="number" min="2" value="12"></label>
+                <label>Your Guess: <input id="guess" type="number" min="1" value="1"></label>
+                <button id="startBtn">Start</button>
+                <button id="resetBtn" class="secondary">Reset</button>
+                <button id="muteBtn" class="secondary mutebtn">🔊 Sound: On</button>
+            </div>
+        </div>
+
+        <div class="main">
+            <div id="arena"></div>
+            <div class="sidebar">
+                <div class="stat">
+                    <div>Instructions</div>
+                    <div style="color:var(--muted);margin-top:6px;font-size:13px">Enter number of people and who you
+                        think survives (index starting from 1). Fixed kill step: every 2nd person (k=2). Click
+                        <b>Start</b>. No pre-highlight — eliminations happen instantly with a slash animation and sound.
+                    </div>
+                </div>
+                <div class="stat">
+                    <div>Status</div>
+                    <div id="statusText" style="margin-top:8px;color:var(--muted)">Idle</div>
+                    <div id="resultText" class="result"></div>
+                </div>
+                <div class="stat">
+                    <div>Controls</div>
+                    <div style="margin-top:8px;color:var(--muted);font-size:13px">You can reset anytime. Inputs are
+                        disabled while animation runs.</div>
+                    <button id="fastForwardBtn" style="margin-top: 16px;">⏩ Speed: 1x</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fast Forward and Reset JS logic
+        const arena = document.getElementById('arena');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const fastForwardBtn = document.getElementById('fastForwardBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const statusText = document.getElementById('statusText');
+        const resultText = document.getElementById('resultText');
+        let audioEnabled = true;
+        let timer = null;
+        let step = 700;
+        let currentStep = step;
+        let people = [];
+
+        muteBtn.addEventListener('click', () => {
+            audioEnabled = !audioEnabled;
+            muteBtn.textContent = audioEnabled ? '🔊 Sound: On' : '🔈 Sound: Off';
+        });
+
+        function placePeople(n) {
+            arena.innerHTML = '';
+            people = [];
+            const size = Math.min(arena.clientWidth, arena.clientHeight);
+            const cx = size / 2, cy = size / 2, radius = size / 2 - 90;
+            for (let i = 0; i < n; i++) {
+                const el = document.createElement('div');
+                el.className = 'person';
+                el.innerHTML = `<div class="avatar" data-index="${i}"><div class="head"></div><div class="body"></div></div>`;
+                const angle = (2 * Math.PI / n) * i - Math.PI / 2;
+                const x = cx + Math.cos(angle) * radius - 28;
+                const y = cy + Math.sin(angle) * radius - 36;
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                // label (index) as small badge
+                const badge = document.createElement('div');
+                badge.style.position = 'absolute'; badge.style.bottom = '6px'; badge.style.right = '6px'; badge.style.fontSize = '11px'; badge.style.color = '#022'; badge.style.fontWeight = '700';
+                badge.textContent = i + 1;
+                el.appendChild(badge);
+                arena.appendChild(el);
+                people.push({ el, alive: true, index: i });
+            }
+        }
+
+        function nextAliveIndex(start) {
+            const n = people.length;
+            let i = (start + 1) % n;
+            while (i !== start) {
+                if (people[i].alive) return i;
+                i = (i + 1) % n;
+            }
+            return -1;
+        }
+
+        function playSlashSound() {
+            if (!audioEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(900, ctx.currentTime);
+                o.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.09);
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.015);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(); o.stop(ctx.currentTime + 0.12);
+            } catch (e) { }
+        }
+
+        function createSlash(x, y, angle) {
+            const s = document.createElement('div');
+            s.className = 'slash';
+            s.style.left = x + 'px';
+            s.style.top = y + 'px';
+            s.style.transform = `rotate(${angle}deg)`;
+            arena.appendChild(s);
+            requestAnimationFrame(() => { s.style.width = '260px'; s.style.animation = 'slashGrow 420ms ease-out forwards'; });
+            setTimeout(() => { s.remove(); }, 520);
+        }
+
+        function runJosephus() {
+            const n = Math.max(2, parseInt(document.getElementById('numPeople').value, 10) || 2);
+            const guess = Math.max(1, parseInt(document.getElementById('guess').value, 10) || 1);
+            resultText.textContent = '';
+            statusText.textContent = 'Running...';
+            disableInputs(true);
+            placePeople(n);
+            let aliveCount = n;
+            let current = 0;
+
+            timer = setInterval(() => {
+                if (aliveCount <= 1) {
+                    clearInterval(timer); disableInputs(false);
+                    statusText.textContent = 'Finished';
+                    const survivor = people.find(p => p.alive); const survivorIdx = survivor.index + 1;
+                    resultText.textContent = (survivorIdx === guess) ? '🎉 Congrats! Your guess was correct.' : `❌ Wrong — survivor was ${survivorIdx}`;
+                    return;
+                }
+                const victimIdx = nextAliveIndex(current);
+                if (victimIdx === -1) return;
+                const victim = people[victimIdx];
+                victim.el.classList.add('dead'); victim.alive = false; aliveCount--;
+                const rect = victim.el.getBoundingClientRect();
+                const arenaRect = arena.getBoundingClientRect();
+                const cx = rect.left - arenaRect.left + rect.width / 2; const cy = rect.top - arenaRect.top + rect.height / 2;
+                const angle = (Math.random() * 60) - 30;
+                createSlash(cx - 10, cy - 4, angle); playSlashSound();
+                current = nextAliveIndex(victimIdx);
+            }, currentStep);
+        }
+
+        function disableInputs(disabled) {
+            document.getElementById('numPeople').disabled = disabled;
+            document.getElementById('guess').disabled = disabled;
+            startBtn.disabled = disabled;
+        }
+
+        startBtn.addEventListener('click', () => { runJosephus(); });
+
+        resetBtn.addEventListener('click', () => {
+            clearInterval(timer);
+            timer = null;
+            audioEnabled = false;
+            arena.innerHTML = '';
+            statusText.textContent = 'Idle';
+            resultText.textContent = '';
+            disableInputs(false);
+            fastForwardBtn.textContent = '⏩ Speed: 1x';
+            placePeople(parseInt(document.getElementById('numPeople').value, 10) || 8);
+        });
+
+        fastForwardBtn.addEventListener('mousedown', () => {
+            currentStep = step / 2;
+            fastForwardBtn.textContent = '⏩ Speed: 2x';
+            clearInterval(timer);
+            runJosephus();
+        });
+        const resetSpeedCallback = () => {
+            currentStep = step;
+            fastForwardBtn.textContent = '⏩ Speed: 1x';
+            clearInterval(timer);
+            runJosephus();
+        };
+        fastForwardBtn.addEventListener('mouseup', resetSpeedCallback);
+        fastForwardBtn.addEventListener('mouseleave', resetSpeedCallback);
+
+        window.addEventListener('load', () => { placePeople(parseInt(document.getElementById('numPeople').value, 10) || 8); });
+        window.addEventListener('resize', () => { const n = parseInt(document.getElementById('numPeople').value, 10) || 8; placePeople(n); });
+    </script>
+</body>
+
+</html>
